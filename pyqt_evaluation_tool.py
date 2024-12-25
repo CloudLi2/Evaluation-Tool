@@ -6,7 +6,6 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QTextEdit, Q
 from PyQt5.QtCore import QTimer, Qt
 import simpleaudio as sa
 import wave
-from pydub import AudioSegment
 
 
 class ClickableSlider(QSlider):
@@ -362,10 +361,6 @@ class PyqtEvaluationTool(QMainWindow):
         self.audio_duration_ms = self.num_frames / self.sample_rate * 1000
         self.progress_slider.setRange(0, int(self.audio_duration_ms))
         
-        # # Load the audio file using pydub
-        # self.audio_segment = AudioSegment.from_wav(file_path)
-        # self.audio_duration_ms = len(self.audio_segment)
-        # self.progress_slider.setRange(0, int(self.audio_duration_ms))
         # Empty the note text box
         self.note.clear()
         # Start playing from the beginning
@@ -380,21 +375,13 @@ class PyqtEvaluationTool(QMainWindow):
         self.reference_audio_sample_rate = self.reference_audio_read.getframerate()
         self.reference_audio_num_frames = self.reference_audio_read.getnframes()
         self.reference_audio_duration_ms = self.reference_audio_num_frames / self.reference_audio_sample_rate * 1000
+        self.progress_slider.setRange(0, int(self.reference_audio_duration_ms))
         
         if self.reference_audio_data is None:
             print("reference audio not loaded.")
             return
         else:
             self.play_reference_audio(0)
-        
-        # # Load the audio file using pydub
-        # self.reference_audio_segment = AudioSegment.from_wav(file_path)
-        # if self.reference_audio_segment is None:
-        #     print("reference audio not loaded.")
-        #     return
-        # else:
-        #     self.reference_audio_duration_ms = len(self.reference_audio_segment)
-        #     self.play_reference_audio(0)
     
     def play_audio(self, start_ms=0):
         """play audio function
@@ -405,10 +392,6 @@ class PyqtEvaluationTool(QMainWindow):
         if self.audio_data is None:
             print("audio not loaded.")
             return
-        
-        # if self.audio_segment is None:
-        #     print("audio not loaded.")
-        #     return
         
         if self.current_index < len(self.audio_files):
             audio_file = self.audio_files[self.current_index]
@@ -425,15 +408,7 @@ class PyqtEvaluationTool(QMainWindow):
             self.play_obj = sa.play_buffer(audio_data, self.num_channels, self.bytes_per_sample, self.sample_rate)
             self.audio_position = start_ms
             self.timer.start()
-            
-            # # Play the audio from start_ms
-            # audio = self.audio_segment[start_ms:]
-            # self.play_obj = sa.play_buffer(audio.raw_data,
-            #                                num_channels=audio.channels,
-            #                                bytes_per_sample=audio.sample_width,  
-            #                                sample_rate=audio.frame_rate)
-            # self.audio_position = start_ms
-            # self.timer.start()
+
         else:
             print("no more audio files.")
         
@@ -447,10 +422,6 @@ class PyqtEvaluationTool(QMainWindow):
             print("reference audio not loaded.")
             return
         
-        # if self.reference_audio_segment is None:
-        #     print("audio not loaded.")
-        #     return
-        
         if self.current_index < len(self.reference_audio_files):
             audio_file = self.reference_audio_files[self.current_index]
             display_text = f"{os.path.basename(audio_file)}"
@@ -463,15 +434,7 @@ class PyqtEvaluationTool(QMainWindow):
             self.play_obj = sa.play_buffer(audio_data, self.reference_audio_num_channels, self.reference_audio_bytes_per_sample, self.reference_audio_sample_rate)
             self.audio_position = start_ms
             self.timer.start()
-        
-            # # Play the audio from start_frame
-            # audio = self.reference_audio_segment[start_ms:]
-            # self.play_obj = sa.play_buffer(audio.raw_data,
-            #                                num_channels=audio.channels,
-            #                                bytes_per_sample=audio.sample_width,  
-            #                                sample_rate=audio.frame_rate)
-            # self.audio_position = start_ms
-            # self.timer.start()
+
         else:
             print("no more audio files.")
     
@@ -488,6 +451,7 @@ class PyqtEvaluationTool(QMainWindow):
     def seek_audio(self):
         """play audio from the seek time
         """
+        self.progress_slider.setRange(0, int(self.audio_duration_ms))
         seek_time = self.progress_slider.value()
         start_ms = seek_time
         self.play_audio(start_ms)
@@ -534,6 +498,7 @@ class PyqtEvaluationTool(QMainWindow):
             self.current_index -= 1
 
     def replay_audio(self):
+        self.progress_slider.setRange(0, int(self.audio_duration_ms))
         self.play_audio()
 
     def save_and_summary(self):
@@ -623,6 +588,7 @@ class PyqtEvaluationTool(QMainWindow):
     def on_item_clicked(self, item):
         """handle audio list click event
         """
+        self.progress_slider.setRange(0, int(self.audio_duration_ms))
         filename = item.text()
         for file in self.audio_files:
             if os.path.basename(file) == filename:
