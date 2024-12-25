@@ -43,11 +43,8 @@ class PyqtEvaluationTool(QMainWindow):
     def initialize_variables(self):
         self.audio_files = []
         self.current_index = 0
-        self.audio_thread = None
         self.results = []  # list to store the results
-        self.audio_segment = None
         self.play_obj = None
-        self.num_frames = None
         self.texts = []
         self.audio_position = 0
         self.audio_duration_ms = 0
@@ -360,7 +357,6 @@ class PyqtEvaluationTool(QMainWindow):
         self.num_frames = self.audio_read.getnframes()
         self.audio_duration_ms = self.num_frames / self.sample_rate * 1000
         self.progress_slider.setRange(0, int(self.audio_duration_ms))
-        
         # Empty the note text box
         self.note.clear()
         # Start playing from the beginning
@@ -434,7 +430,6 @@ class PyqtEvaluationTool(QMainWindow):
             self.play_obj = sa.play_buffer(audio_data, self.reference_audio_num_channels, self.reference_audio_bytes_per_sample, self.reference_audio_sample_rate)
             self.audio_position = start_ms
             self.timer.start()
-
         else:
             print("no more audio files.")
     

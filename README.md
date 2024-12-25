@@ -29,4 +29,4 @@ This is an audio evaluation tool, aims for fast audio listening, commenting and 
 - sys
 - PyQt5
 - simpleaudio
-- pydub
+- wave
