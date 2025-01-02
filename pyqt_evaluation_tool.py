@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QTextEdit, Q
 from PyQt5.QtCore import QTimer, Qt
 import simpleaudio as sa
 import wave
+import pandas as pd
 
 
 class ClickableSlider(QSlider):
@@ -20,8 +21,8 @@ class ClickableSlider(QSlider):
 
             new_value = round((x / slider_length) * (slider_max - slider_min) + slider_min)
             self.setValue(new_value)
-            self.sliderReleased.emit()
         super().mousePressEvent(event)
+        self.sliderReleased.emit()
         
 
 class PyqtEvaluationTool(QMainWindow):
@@ -52,33 +53,74 @@ class PyqtEvaluationTool(QMainWindow):
     def setup_ui(self):
         """UI setup
         """
-        # dark theme
+        self.setWindowFlags(Qt.FramelessWindowHint)
+        # 设置深色主题
         self.setStyleSheet("""
             QWidget {
-                background-color: #1e1e1e;
-                color: #d4d4d4;
-                font-family: Microsoft YaHei UI;
-                font-weight: bold;
+            background-color: #1e1e1e;
+            color: #CCCCCC;
+            font-family: Microsoft YaHei UI;
+            font-weight: bold;
             }
             QLabel {
-                font-size: 12pt;
-                font-family: Microsoft YaHei UI;
-                font-weight: bold;
-                color: #d4d4d4;
+            font-size: 12pt;
+            font-family: Microsoft YaHei UI;
+            font-weight: bold;
+            color: #CCCCCC;
+            }
+            QPushButton {
+            font-size: 18pt;
+            font-family: Microsoft YaHei UI;
+            font-weight: bold;
+            color: #d0d0d0;
             }
             QTextEdit {
-                font-size: 16pt;
-                font-family: Microsoft YaHei;
-                font-weight: normal;
-                background-color: #252526;
-                color: #d4d4d4;
+            background-color: #252526;
+            font-size: 16pt;
+            font-family: Microsoft YaHei;
+            font-weight: normal;
+            color: #d4d4d4;
+            border: none;
             }
             QListWidget {
-                font-size: 12pt;
-                font-family: Arial;
-                font-weight: normal;
-                background-color: #252526;
-                color: #d4d4d4;
+            background-color: #252526;
+            font-size: 14pt;
+            font-family: Microsoft YaHei UI;
+            font-weight: normal;
+            color: #CCCCCC;
+            border: none;
+            }
+            QScrollBar:vertical {
+            background: #2d2d2d;
+            width: 22px;
+            margin: 0px 3px 0px 3px;
+            border: none;
+            }
+            QScrollBar::handle:vertical {
+            background: #565656;
+            min-height: 20px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+            background: none;
+            height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+            background: none;
+            }
+            QSlider::groove:horizontal {
+            height: 14px;  /* 轨道高度 */
+            background: #2d2d2d;  /* 轨道背景颜色 */
+            }
+            QSlider::handle:horizontal {
+            background: #007acc;  /* 滑块颜色 */
+            width: 16px;  /* 滑块宽度 */
+            margin: -5px 0;  /* 滑块与轨道的对齐调整 */
+            }
+            QSlider::sub-page:horizontal {
+            background: #005a96;  /* 已滑动部分轨道颜色 */
+            }
+            QSlider::add-page:horizontal {
+            background: #2d2d2d;  /* 未滑动部分轨道颜色 */
             }
         """)
         
@@ -93,7 +135,35 @@ class PyqtEvaluationTool(QMainWindow):
         # create main layout
         main_layout = QHBoxLayout()
         
-        # left layout for audio list
+        # 添加自定义标题栏
+        self.title_bar = QWidget(self)
+        self.title_bar.setFixedHeight(40)
+        self.title_bar.setStyleSheet("""background-color: #323232; border-top-left-radius: 8px;""")
+        
+        self.title_label = QLabel("Audio Test Tool", self.title_bar)
+        title_layout = QHBoxLayout(self.title_bar)
+        title_layout.addWidget(self.title_label)
+        title_layout.addStretch()
+        
+        self.close_button = QPushButton('\u2715', self)
+        self.close_button.setFixedSize(40, 40)
+        self.close_button.setStyleSheet("""
+            QPushButton {
+                background-color: #323232;
+                border-top-right-radius: 8px;
+            }
+            QPushButton:hover {
+                background-color: #ff0000;
+            }
+        """)
+        self.close_button.clicked.connect(self.close)
+        
+        title_layout = QHBoxLayout()
+        title_layout.addWidget(self.title_bar)
+        title_layout.addWidget(self.close_button)
+        title_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # 左侧列表控件
         self.list_widget = QListWidget()
         self.list_widget.setStyleSheet("font-size: 11pt;")
         self.list_widget.itemClicked.connect(self.on_item_clicked)
@@ -160,7 +230,7 @@ class PyqtEvaluationTool(QMainWindow):
         # Next button
         self.next_button = QPushButton("Next audio", self)
         self.next_button.setFixedHeight(40)
-        self.next_button.setStyleSheet("font-size: 16px; color: black; background-color: #cccccc;")
+        self.next_button.setStyleSheet("font-size: 18px; background-color: #565656;")
         self.next_button.clicked.connect(lambda: self.next_audio())
         right_layout.addWidget(self.next_button)
 
@@ -168,42 +238,26 @@ class PyqtEvaluationTool(QMainWindow):
         button_layout = QHBoxLayout()
         self.TP_button = QPushButton("True Positive", self)
         self.TP_button.setFixedHeight(100)  # 增加高度
-        self.TP_button.setStyleSheet("""
-                font-size: 22px; 
-                font-weight: bold; 
-                background-color: #007509; 
-                """)
-        self.TP_button.clicked.connect(lambda: self.mark_result("TP"))
+        self.TP_button.setStyleSheet("""background-color: #00750a; """)
+        self.TP_button.clicked.connect(lambda: self.mark_result("TN"))
         button_layout.addWidget(self.TP_button)
         
         self.TN_button = QPushButton("True Negative", self)
         self.TN_button.setFixedHeight(100)  # 增加高度
-        self.TN_button.setStyleSheet("""
-                font-size: 22px; 
-                font-weight: bold; 
-                background-color: #00870a; 
-                """)
-        self.TN_button.clicked.connect(lambda: self.mark_result("TN"))
+        self.TN_button.setStyleSheet("""background-color: #00800a; """)
+        self.TN_button.clicked.connect(lambda: self.mark_result("TP"))
         button_layout.addWidget(self.TN_button)
                 
         self.FP_button = QPushButton("False Positive", self)
         self.FP_button.setFixedHeight(100)
-        self.FP_button.setStyleSheet("""
-                font-size: 22px; 
-                font-weight: bold; 
-                background-color: #870100; 
-                """)
-        self.FP_button.clicked.connect(lambda: self.mark_result("FP"))
+        self.FP_button.setStyleSheet("""background-color: #800100; """)
+        self.FP_button.clicked.connect(lambda: self.mark_result("FN"))
         button_layout.addWidget(self.FP_button)
 
         self.FN_button = QPushButton("False Negative", self)
         self.FN_button.setFixedHeight(100)
-        self.FN_button.setStyleSheet("""
-                font-size: 22px; 
-                font-weight: bold; 
-                background-color: #750100; 
-                """)
-        self.FN_button.clicked.connect(lambda: self.mark_result("FN"))
+        self.FN_button.setStyleSheet("""background-color: #750100; """)
+        self.FN_button.clicked.connect(lambda: self.mark_result("FP"))
         button_layout.addWidget(self.FN_button)
         
         right_layout.addLayout(button_layout)
@@ -211,22 +265,14 @@ class PyqtEvaluationTool(QMainWindow):
         # create layout for good and bad buttons
         button_layout2 = QHBoxLayout()
         self.TP_button2 = QPushButton("Good", self)
-        self.TP_button2.setFixedHeight(100)
-        self.TP_button2.setStyleSheet("""
-                font-size: 22px;
-                font-weight: bold;
-                background-color: #007509;
-                """)
+        self.TP_button2.setFixedHeight(100)  # 增加高度
+        self.TP_button2.setStyleSheet("""background-color: #007509;""")
         self.TP_button2.clicked.connect(lambda: self.mark_result("T"))
         button_layout2.addWidget(self.TP_button2)
         
         self.TN_button2 = QPushButton("Bad", self)
-        self.TN_button2.setFixedHeight(100)
-        self.TN_button2.setStyleSheet("""
-                font-size: 22px;
-                font-weight: bold;
-                background-color: #870100;
-                """)
+        self.TN_button2.setFixedHeight(100)  # 增加高度
+        self.TN_button2.setStyleSheet("""background-color: #870100;""")
         self.TN_button2.clicked.connect(lambda: self.mark_result("F"))
         button_layout2.addWidget(self.TN_button2)
         
@@ -246,14 +292,52 @@ class PyqtEvaluationTool(QMainWindow):
         save_exit_layout.addWidget(self.exit_button)
         
         right_layout.addLayout(save_exit_layout)
+        
+        # 创建一个垂直布局，将title_bar放在顶部
+        vertical_layout = QVBoxLayout()
+        vertical_layout.setContentsMargins(0, 0, 0, 0)
+        vertical_layout.setSpacing(0)
+        vertical_layout.addLayout(title_layout)
+        vertical_layout.addLayout(main_layout)
 
-        # add layouts to main layout
+        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setSpacing(5)
         main_layout.addWidget(self.list_widget, 1)
         main_layout.addLayout(right_layout, 5)
 
         container = QWidget()
-        container.setLayout(main_layout)
+        container.setLayout(vertical_layout)
         self.setCentralWidget(container)
+        
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        container.setObjectName("mainContainer")
+        container.setStyleSheet("#mainContainer {border-radius: 8px; }")
+        
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            # 将点击坐标转换到 title_bar 的坐标系，再检查是否在 title_bar 的范围内
+            local_pos = self.title_bar.mapFromParent(event.pos())
+            if self.title_bar.rect().contains(local_pos):
+                self.drag_position = event.globalPos() - self.frameGeometry().topLeft()
+                event.accept()
+            else:
+                self.drag_position = None
+                super().mousePressEvent(event)
+        else:
+            self.drag_position = None
+            super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() & Qt.LeftButton and self.drag_position is not None:
+            self.move(event.globalPos() - self.drag_position)
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self.drag_position = None
+        super().mouseReleaseEvent(event)
 
     def play_reference_audio_button_clicked(self):
         if self.reference_audio_files and 0 <= self.current_index < len(self.reference_audio_files):
@@ -474,12 +558,13 @@ class PyqtEvaluationTool(QMainWindow):
             note_content = self.note.toPlainText()
             # wrong_word = note_content.split('\n')[0] if '\n' in note_content else ''
             error_word = note_content.split('\n')[0] if '\n' in note_content else ''
+            error_note = note_content.split('\n')[1] if '\n' in note_content else note_content
             self.results.append({
                 'file': os.path.basename(current_audio), 
                 'text': self.text,
                 'result': result,
                 'error_word': error_word,
-                'note': note_content
+                'note': error_note
             })
         else:
             print("No audio files or index out of range")
